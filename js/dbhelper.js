@@ -3,6 +3,46 @@
  */
 class DBHelper {
 
+  static writeDB(restaurants) {
+    let request = indexedDB.open("db");
+    request.onupgradeneeded = function (event) {
+      let db = event.target.result;
+      db.createObjectStore("restaurants", { keyPath: "name" });
+    }
+    request.onsuccess = function (event) {
+      let db = event.target.result;
+      var tx = db.transaction("restaurants", "readwrite");
+      var store = tx.objectStore("restaurants");
+      for (let i in restaurants) {
+        store.put(restaurants[i]);
+      }
+    }
+  }
+  
+  static readDB() {
+    return new Promise((resolve, reject) => {
+      let restaurants = [];
+      let request = indexedDB.open("db");
+      request.onsuccess = function (event) {
+        let db = event.target.result;
+        var tx = db.transaction("restaurants", "readwrite");
+        var store = tx.objectStore("restaurants");
+        store.openCursor().onsuccess = function(event) {
+          let cursor = event.target.result;
+          if (cursor) {
+            restaurants.push(cursor.value);
+            cursor.continue();
+          } else {
+            resolve(restaurants);
+          }
+        }
+      }
+      request.onerror = function() {
+        reject();
+      }
+    });
+  }
+
   /**
    * Database URL.
    * Change this to restaurants.json file location on your server.
@@ -21,12 +61,18 @@ class DBHelper {
     xhr.onload = () => {
       if (xhr.status === 200) { // Got a success response from server!
         const restaurants = JSON.parse(xhr.responseText);
+        DBHelper.writeDB(restaurants);
         callback(null, restaurants);
       } else { // Oops!. Got an error from server.
         const error = (`Request failed. Returned status of ${xhr.status}`);
         callback(error, null);
       }
     };
+    xhr.onerror = () => {
+      DBHelper.readDB().then(restaurants => {
+        callback(null, restaurants);
+      });
+    }
     xhr.send();
   }
 
