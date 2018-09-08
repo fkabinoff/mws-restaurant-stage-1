@@ -3,6 +3,7 @@ self.addEventListener('install', function (event) {
     caches.open('v1').then(function (cache) {
       return cache.addAll([
         '/',
+        '/manifest.json',
         '/index.html',
         '/restaurant.html',
         '/css/styles.css',
